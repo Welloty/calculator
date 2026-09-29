@@ -152,7 +152,7 @@
     let previous = null;
     let operator = null;
     let waiting = false;
-    let expression = '';
+    let settled = '';
 
     function formatted(value) {
       if (value === 'Ошибка') return value;
@@ -163,10 +163,31 @@
       return fraction === undefined ? grouped : grouped + ',' + fraction;
     }
 
+    // Живой результат: пока вводится второе число, показываем значение всего выражения.
+    function preview() {
+      if (operator && previous !== null && !waiting) {
+        return calculate(previous, Number(current), operator);
+      }
+      return current;
+    }
+
+    // Минус перед отрицательным числом — типографский, как у знака операции.
+    function softMinus(text) {
+      return text.replace(/(^|[\s])(-)/g, '$1−');
+    }
+
+    function expressionLine() {
+      if (operator && previous !== null) {
+        return formatted(previous) + ' ' + symbols[operator] + (waiting ? '' : ' ' + formatted(current));
+      }
+      return settled;
+    }
+
     function render() {
-      resultEl.textContent = formatted(current);
-      expressionEl.textContent = expression;
-      resultEl.style.fontSize = formatted(current).length > 12 ? 'clamp(30px, 8vw, 42px)' : '';
+      const text = formatted(preview());
+      resultEl.textContent = text;
+      expressionEl.textContent = softMinus(expressionLine());
+      resultEl.style.fontSize = text.length > 12 ? 'clamp(30px, 8vw, 42px)' : '';
       resultEl.classList.remove('updated');
       void resultEl.offsetWidth;
       resultEl.classList.add('updated');
@@ -175,37 +196,41 @@
       });
     }
 
+    function reset() {
+      current = '0'; previous = null; operator = null; waiting = false; settled = '';
+    }
+
     function clear() {
-      current = '0'; previous = null; operator = null; waiting = false; expression = '';
+      reset();
       render();
     }
 
     function startFreshIfError() {
       if (current !== 'Ошибка') return;
-      current = '0'; previous = null; operator = null; waiting = false; expression = '';
+      reset();
     }
 
     function digit(value) {
       startFreshIfError();
       if (waiting) {
-        if (!operator) expression = '';
         current = value;
         waiting = false;
       } else if (current.replace(/[^\d]/g, '').length < 12) {
         current = current === '0' ? value : current === '-0' ? '-' + value : current + value;
       }
+      settled = '';
       render();
     }
 
     function decimal() {
       startFreshIfError();
       if (waiting) {
-        if (!operator) expression = '';
         current = '0.';
         waiting = false;
       } else if (!current.includes('.')) {
         current += '.';
       }
+      settled = '';
       render();
     }
 
@@ -222,19 +247,20 @@
       if (current === 'Ошибка') return;
       if (operator && !waiting) {
         current = calculate(previous, Number(current), operator);
-        if (current === 'Ошибка') { previous = null; operator = null; expression = ''; render(); return; }
+        if (current === 'Ошибка') { previous = null; operator = null; waiting = false; settled = ''; render(); return; }
       }
       previous = Number(current);
       operator = next;
       waiting = true;
-      expression = formatted(current) + ' ' + symbols[next];
+      settled = '';
       render();
     }
 
     function equals() {
       if (!operator || waiting || current === 'Ошибка') return;
-      expression = formatted(previous) + ' ' + symbols[operator] + ' ' + formatted(current) + ' =';
-      current = calculate(previous, Number(current), operator);
+      const value = calculate(previous, Number(current), operator);
+      settled = value === 'Ошибка' ? '' : formatted(previous) + ' ' + symbols[operator] + ' ' + formatted(current) + ' =';
+      current = value;
       previous = null;
       operator = null;
       waiting = true;
@@ -243,30 +269,33 @@
 
     function sign() {
       if (current === 'Ошибка') return;
+      settled = '';
       if (waiting && operator) {
         current = '-0';
         waiting = false;
         render();
         return;
       }
-      if (waiting) { expression = ''; waiting = false; }
+      waiting = false;
       current = current.startsWith('-') ? current.slice(1) : '-' + current;
       render();
     }
 
     function percent() {
       if (current === 'Ошибка' || (waiting && operator)) return;
-      if (waiting) { expression = ''; waiting = false; }
+      waiting = false;
+      settled = '';
       current = String(Number((Number(current) / 100).toPrecision(12)));
       render();
     }
 
     function backspace() {
       if (current === 'Ошибка') { clear(); return; }
+      settled = '';
       if (waiting && operator) {
-        operator = null; previous = null; expression = ''; waiting = false;
+        operator = null; previous = null; waiting = false;
       } else {
-        if (waiting) { expression = ''; waiting = false; }
+        waiting = false;
         current = current.length <= 1 || (current.length === 2 && current.startsWith('-')) ? '0' : current.slice(0, -1);
       }
       render();
