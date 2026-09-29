@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#eeece6">
+  <title>Калькулятор</title>
+  <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+  <style>
+    :root { color-scheme: light; }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      min-height: 100dvh;
+      background: #eeece6;
+      color: #222724;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    main {
+      min-height: 100vh;
+      min-height: 100dvh;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      padding: 38px 18px;
+    }
+    .intro { width: min(100%, 392px); margin-bottom: 22px; animation: rise-in .55s both; }
+    h1 { margin: 0; font-size: clamp(28px, 5vw, 38px); line-height: 1.1; letter-spacing: -.055em; font-weight: 650; }
+    .intro p { margin: 9px 0 0; color: #858982; font-size: 13px; letter-spacing: .005em; }
+    .calculator {
+      width: min(100%, 392px);
+      padding: 22px;
+      border-radius: 30px;
+      background: #202724;
+      box-shadow: 0 24px 54px rgba(32, 39, 36, .15), 0 3px 9px rgba(32, 39, 36, .08);
+      animation: rise-in .65s .08s both;
+    }
+    .display {
+      height: 160px;
+      padding: 16px 7px 25px;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-end;
+      align-items: flex-end;
+      text-align: right;
+      overflow: hidden;
+    }
+    .expression { width: 100%; min-height: 22px; color: #829087; font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .result {
+      width: 100%;
+      min-height: 70px;
+      color: #f6f5ef;
+      font-size: clamp(42px, 12vw, 60px);
+      line-height: 1.15;
+      font-weight: 350;
+      letter-spacing: -.065em;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      font-variant-numeric: tabular-nums;
+    }
+    .result.updated { animation: result-in .18s ease-out; }
+    .keys { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+    button {
+      border: 0;
+      border-radius: 18px;
+      height: 72px;
+      color: #f3f3ed;
+      background: #303a35;
+      font: inherit;
+      font-size: 25px;
+      font-weight: 450;
+      cursor: pointer;
+      touch-action: manipulation;
+      transition: transform .15s ease, background-color .15s ease, color .15s ease;
+      -webkit-tap-highlight-color: transparent;
+    }
+    button:hover { background: #3b4841; }
+    button:active { transform: scale(.93); }
+    button:focus-visible { outline: 2px solid #efb369; outline-offset: 3px; }
+    .utility { color: #c5d0c6; background: #3b4740; font-size: 21px; }
+    .utility:hover { background: #4b5b50; }
+    .operator { color: #f2b772; background: #343d35; font-size: 29px; }
+    .operator:hover, .operator.selected { background: #4e4837; }
+    .zero { grid-column: span 2; text-align: left; padding-left: 28px; }
+    .equals { background: #efad65; color: #202724; font-size: 31px; font-weight: 500; }
+    .equals:hover { background: #f7bf7d; }
+    .hint { margin: 23px 0 0; color: #999d95; font-size: 12px; text-align: center; animation: rise-in .65s .18s both; }
+    @keyframes rise-in { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes result-in { from { opacity: .55; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+    @media (max-width: 420px) {
+      .calculator { padding: 16px; border-radius: 25px; }
+      .display { height: 145px; }
+      .keys { gap: 8px; }
+      button { height: min(17vw, 70px); border-radius: 15px; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <header class="intro">
+      <h1>Калькулятор.</h1>
+      <p>Просто посчитайте то, что нужно.</p>
+    </header>
+
+    <section class="calculator" aria-label="Калькулятор">
+      <div class="display" aria-live="polite" aria-atomic="true">
+        <div class="expression" id="expression"></div>
+        <div class="result" id="result">0</div>
+      </div>
+      <div class="keys" id="keys">
+        <button class="utility" data-action="clear" aria-label="Очистить">AC</button>
+        <button class="utility" data-action="sign" aria-label="Сменить знак">+/−</button>
+        <button class="utility" data-action="percent" aria-label="Процент">%</button>
+        <button class="operator" data-action="operator" data-value="/" aria-label="Разделить">÷</button>
+
+        <button data-action="digit" data-value="7">7</button>
+        <button data-action="digit" data-value="8">8</button>
+        <button data-action="digit" data-value="9">9</button>
+        <button class="operator" data-action="operator" data-value="*" aria-label="Умножить">×</button>
+
+        <button data-action="digit" data-value="4">4</button>
+        <button data-action="digit" data-value="5">5</button>
+        <button data-action="digit" data-value="6">6</button>
+        <button class="operator" data-action="operator" data-value="-" aria-label="Вычесть">−</button>
+
+        <button data-action="digit" data-value="1">1</button>
+        <button data-action="digit" data-value="2">2</button>
+        <button data-action="digit" data-value="3">3</button>
+        <button class="operator" data-action="operator" data-value="+" aria-label="Сложить">+</button>
+
+        <button class="zero" data-action="digit" data-value="0">0</button>
+        <button data-action="decimal" aria-label="Десятичная запятая">,</button>
+        <button class="equals" data-action="equals" aria-label="Равно">=</button>
+      </div>
+    </section>
+    <p class="hint">Можно пользоваться клавиатурой · Backspace удаляет цифру</p>
+  </main>
+
+  <script>
+    const resultEl = document.getElementById('result');
+    const expressionEl = document.getElementById('expression');
+    const keysEl = document.getElementById('keys');
+    const symbols = { '+': '+', '-': '−', '*': '×', '/': '÷' };
+
+    let current = '0';
+    let previous = null;
+    let operator = null;
+    let waiting = false;
+    let expression = '';
+
+    function formatted(value) {
+      if (value === 'Ошибка') return value;
+      const text = String(value);
+      if (text.includes('e')) return text.replace('.', ',');
+      const [whole, fraction] = text.split('.');
+      const grouped = whole.replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+      return fraction === undefined ? grouped : grouped + ',' + fraction;
+    }
+
+    function render() {
+      resultEl.textContent = formatted(current);
+      expressionEl.textContent = expression;
+      resultEl.style.fontSize = formatted(current).length > 12 ? 'clamp(30px, 8vw, 42px)' : '';
+      resultEl.classList.remove('updated');
+      void resultEl.offsetWidth;
+      resultEl.classList.add('updated');
+      keysEl.querySelectorAll('.operator').forEach(button => {
+        button.classList.toggle('selected', button.dataset.value === operator && waiting);
+      });
+    }
+
+    function clear() {
+      current = '0'; previous = null; operator = null; waiting = false; expression = '';
+      render();
+    }
+
+    function startFreshIfError() {
+      if (current !== 'Ошибка') return;
+      current = '0'; previous = null; operator = null; waiting = false; expression = '';
+    }
+
+    function digit(value) {
+      startFreshIfError();
+      if (waiting) {
+        if (!operator) expression = '';
+        current = value;
+        waiting = false;
+      } else if (current.replace(/[^\d]/g, '').length < 12) {
+        current = current === '0' ? value : current === '-0' ? '-' + value : current + value;
+      }
+      render();
+    }
+
+    function decimal() {
+      startFreshIfError();
+      if (waiting) {
+        if (!operator) expression = '';
+        current = '0.';
+        waiting = false;
+      } else if (!current.includes('.')) {
+        current += '.';
+      }
+      render();
+    }
+
+    function calculate(a, b, operation) {
+      let value;
+      if (operation === '+') value = a + b;
+      if (operation === '-') value = a - b;
+      if (operation === '*') value = a * b;
+      if (operation === '/') value = b === 0 ? NaN : a / b;
+      return Number.isFinite(value) ? String(Number(value.toPrecision(12))) : 'Ошибка';
+    }
+
+    function setOperator(next) {
+      if (current === 'Ошибка') return;
+      if (operator && !waiting) {
+        current = calculate(previous, Number(current), operator);
+        if (current === 'Ошибка') { previous = null; operator = null; expression = ''; render(); return; }
+      }
+      previous = Number(current);
+      operator = next;
+      waiting = true;
+      expression = formatted(current) + ' ' + symbols[next];
+      render();
+    }
+
+    function equals() {
+      if (!operator || waiting || current === 'Ошибка') return;
+      expression = formatted(previous) + ' ' + symbols[operator] + ' ' + formatted(current) + ' =';
+      current = calculate(previous, Number(current), operator);
+      previous = null;
+      operator = null;
+      waiting = true;
+      render();
+    }
+
+    function sign() {
+      if (current === 'Ошибка') return;
+      if (waiting && operator) {
+        current = '-0';
+        waiting = false;
+        render();
+        return;
+      }
+      if (waiting) { expression = ''; waiting = false; }
+      current = current.startsWith('-') ? current.slice(1) : '-' + current;
+      render();
+    }
+
+    function percent() {
+      if (current === 'Ошибка' || (waiting && operator)) return;
+      if (waiting) { expression = ''; waiting = false; }
+      current = String(Number((Number(current) / 100).toPrecision(12)));
+      render();
+    }
+
+    function backspace() {
+      if (current === 'Ошибка') { clear(); return; }
+      if (waiting && operator) {
+        operator = null; previous = null; expression = ''; waiting = false;
+      } else {
+        if (waiting) { expression = ''; waiting = false; }
+        current = current.length <= 1 || (current.length === 2 && current.startsWith('-')) ? '0' : current.slice(0, -1);
+      }
+      render();
+    }
+
+    const actions = { clear, digit, decimal, operator: setOperator, equals, sign, percent, backspace };
+    keysEl.addEventListener('click', event => {
+      const button = event.target.closest('button[data-action]');
+      if (button) actions[button.dataset.action](button.dataset.value);
+    });
+
+    document.addEventListener('keydown', event => {
+      if (event.ctrlKey || event.metaKey || event.altKey) return;
+      const key = event.key;
+      if (/^[0-9]$/.test(key)) digit(key);
+      else if (key === '.' || key === ',') decimal();
+      else if (['+', '-', '*', '/'].includes(key)) { event.preventDefault(); setOperator(key); }
+      else if (key === 'Enter' || key === '=') { event.preventDefault(); equals(); }
+      else if (key === 'Escape' || key.toLowerCase() === 'c') clear();
+      else if (key === 'Backspace') { event.preventDefault(); backspace(); }
+      else if (key === '%') percent();
+    });
+  </script>
+</body>
+</html>
